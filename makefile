@@ -3,6 +3,7 @@ CC = gcc
 CFLAGS = -g -O2 -Wall
 
 # 库
+LIBPTHREAD = -lpthread
 
 # 执行文件
 TARGET = redis
@@ -18,7 +19,7 @@ OBJS = $(patsubst %.c,%.o,$(SOURCES))
 
 # 生成执行文件
 $(TARGET):$(OBJS)
-	$(CC) $(OBJS) -o $@
+	$(CC) $(OBJS) -o $@ $(LIBPTHREAD)
 	chmod u+x $@
 
 # 删除.o文件和执行文件
