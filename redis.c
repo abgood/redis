@@ -139,6 +139,12 @@ int main (int argc, char **argv) {
             }
         }
 
+        /*
+         * 第一个参数为'--'开头, j始终为1
+         * 第一个参数不为'--'开头, j始终为2
+         *
+         */
+
         // j为1,第1个参数不是'--'开头的是配置文件
         if (argv[j][0] != '-' || argv[j][1] != '-') {
             configfile = argv[j++];
@@ -146,15 +152,28 @@ int main (int argc, char **argv) {
 
         // 配置文件参数后还有内容
         while (j != argc) {
+            // 所有参数有包括'--'开头的参数
             if (argv[j][0] == '-' && argv[j][1] == '-') {
-                printf("have other arguments\n");
+                if (sdslen(options)) options = sdscat(options, "\n");
+                options = sdscat(options, " ");
             } else {
                 // append new string, 转义特殊字符, return new pointer
                 options = sdscatrepr(options, argv[j], strlen(argv[j]));
-                // options = sdscat(options, " ");
+                options = sdscat(options, " ");
             }
             j++;
         }
+
+        if (server.sentinel_mode && configfile && *configfile == '-') {
+            printf("need redis log\n");
+            exit(1);
+        }
+
+        if (configfile) {
+            server.configfile = getAbsolutePath(configfile);
+        }
+        resetServerSaveParams();
+        loadServerConfig(configfile, options);
     }
 
     printf("redis done\n");

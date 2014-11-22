@@ -9,6 +9,13 @@
     pthread_mutex_unlock(&used_memory_mutex); \
 } while (0)
 
+// 更新zmalloc状态sub, 多线程条件下加锁处理
+#define update_zmalloc_stat_sub(__n) do {   \
+    pthread_mutex_lock(&used_memory_mutex); \
+    used_memory -= (__n);   \
+    pthread_mutex_unlock(&used_memory_mutex);   \
+} while (0)
+
 // 更新内存占用量的统计
 #define update_zmalloc_stat_alloc(__n) do { \
     size_t _n = (__n);  \
@@ -17,6 +24,17 @@
         update_zmalloc_stat_add(_n);    \
     } else {    \
         used_memory += _n;  \
+    }   \
+} while (0)
+
+// 释放内存并重置内存占用量
+#define update_zmalloc_stat_free(__n) do {  \
+    size_t _n = (__n);  \
+    if (_n & (sizeof(long) - 1)) _n += sizeof(long) - (_n & (sizeof(long) - 1)); \
+    if (zmalloc_thread_safe) {  \
+        update_zmalloc_stat_sub(_n);    \
+    } else {    \
+        used_memory -= _n;  \
     }   \
 } while (0)
 
@@ -43,13 +61,45 @@ void zmalloc_set_oom_handler(void (*oom_handler)(size_t)) {
     zmalloc_oom_handler = oom_handler;
 }
 
-// 分配空间:sizeof(strucct) + initlen + 1
+// 分配空间:sizeof(struct) + initlen + 1
 void *zmalloc(size_t size) {
     void *ptr = malloc(size + PREFIX_SIZE);
     // expect out of memory
     if (!ptr) zmalloc_oom_handler(size);
 
+    // 内存块头部保存内存块大小
     *((size_t *)ptr) = size;
     update_zmalloc_stat_alloc(size + PREFIX_SIZE);
     return (char *)ptr + PREFIX_SIZE;
+}
+
+// 重新分配
+void *zrealloc(void *ptr, size_t size) {
+    void *realptr;
+    size_t oldsize;
+    void *newptr;
+
+    // 原字符串长度
+    realptr = (char *)ptr - PREFIX_SIZE;
+    oldsize = *((size_t *)realptr);
+    newptr = realloc(realptr, size + PREFIX_SIZE);
+    if (!newptr) zmalloc_oom_handler(size);
+
+    *((size_t *)newptr) = size;
+    // 释放之前的空间
+    update_zmalloc_stat_free(oldsize);
+    update_zmalloc_stat_alloc(size);
+    return (char *)newptr + PREFIX_SIZE;
+}
+
+// 释放空间
+void zfree(void *ptr) {
+    void *realptr;
+    size_t oldsize;
+
+    if (ptr == NULL) return;
+    realptr = (char *)ptr - PREFIX_SIZE;
+    oldsize = *((size_t *)realptr);
+    update_zmalloc_stat_free(oldsize + PREFIX_SIZE);
+    free(realptr);
 }
