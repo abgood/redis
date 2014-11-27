@@ -45,3 +45,50 @@ sds getAbsolutePath(char *filename) {
     sdsfree(relpath);
     return abspath;
 }
+
+// 通过单位转换字符串大小
+long long memtoll(const char *p, int *err) {
+    const char *u;
+    char buf[128];
+    long mul;
+    long long val;
+    unsigned int digits;
+
+    if (err) *err = 0;
+
+    // 查找第一个不是数字的字符串
+    u = p;
+    if (*u == '-') u++;
+    while (*u && isdigit(*u)) u++;
+
+    if (*u == '\0' || !strcasecmp(u, "b")) {
+        mul = 1;
+    } else if (!strcasecmp(u, "k")) {
+        mul = 1000;
+    } else if (!strcasecmp(u, "kb")) {
+        mul = 1024;
+    } else if (!strcasecmp(u, "m")) {
+        mul = 1000 * 1000;
+    } else if (!strcasecmp(u, "mb")) {
+        mul = 1024 * 1024;
+    } else if (!strcasecmp(u, "g")) {
+        mul = 1000L * 1000 * 1000;
+    } else if (!strcasecmp(u, "gb")) {
+        mul = 1024L * 1024 * 1024;
+    } else {
+        if (err) *err = 1;
+        mul = 1;
+    }
+
+    // 数字长度
+    digits = u - p;
+    if (digits >= sizeof(buf)) {
+        if (err) *err = 1;
+        return LLONG_MAX;
+    }
+
+    memcpy(buf, p, digits);
+    buf[digits] = '\0';
+    val = strtoll(buf, NULL, 10);
+    return val * mul;
+}

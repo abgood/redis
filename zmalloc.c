@@ -79,7 +79,8 @@ void *zrealloc(void *ptr, size_t size) {
     size_t oldsize;
     void *newptr;
 
-    // 原字符串长度
+    if (ptr == NULL) return zmalloc(size);
+    // 原字符串长度, 字符串头部
     realptr = (char *)ptr - PREFIX_SIZE;
     oldsize = *((size_t *)realptr);
     newptr = realloc(realptr, size + PREFIX_SIZE);
@@ -102,4 +103,13 @@ void zfree(void *ptr) {
     oldsize = *((size_t *)realptr);
     update_zmalloc_stat_free(oldsize + PREFIX_SIZE);
     free(realptr);
+}
+
+// 字符串复制
+char *zstrdup(const char *s) {
+    size_t l = strlen(s) + 1;
+    char *p = zmalloc(l);
+
+    memcpy(p, s, l);
+    return p;
 }

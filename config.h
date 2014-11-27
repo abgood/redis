@@ -3,6 +3,6 @@
 
 void spt_init(int, char **);
 void resetServerSaveParams(void);
-void loadSererConfig(char *, char *);
+void loadServerConfig(char *, char *);
 
 #endif

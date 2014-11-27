@@ -82,6 +82,30 @@ void usage(void) {
     exit(1);
 }
 
+// 后台模式
+void daemonize(void) {
+    int fd;
+
+    if (fork() != 0) {
+        exit(0);
+    }
+    setsid();
+
+    if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+        dup2(fd, STDIN_FILENO);
+        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDERR_FILENO);
+        if (fd > STDERR_FILENO) {
+            close(fd);
+        }
+    }
+}
+
+// init server
+void initServer(void) {
+    printf("initServer\n");
+}
+
 int main (int argc, char **argv) {
     struct timeval tv;
 
@@ -174,7 +198,18 @@ int main (int argc, char **argv) {
         }
         resetServerSaveParams();
         loadServerConfig(configfile, options);
+        sdsfree(options);
+    } else {
+        printf("warning: no config file specified\n");
     }
+
+    // 后台模式
+    if (server.daemonize) {
+        daemonize();
+    }
+
+    // init server
+    initServer();
 
     printf("redis done\n");
     return 0;
