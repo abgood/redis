@@ -37,5 +37,6 @@ void sdsrange(sds, int, int);
 sds sdscatsds(sds s, const sds t);
 sds *sdssplitlen(const char *, int, const char *, int, int *);
 sds *sdssplitargs(const char *, int *);
+sds sdsnewlen(const void *, size_t);
 
 #endif

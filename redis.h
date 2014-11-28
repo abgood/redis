@@ -31,6 +31,7 @@
 #include "sds.h"
 #include "util.h"
 #include "adlist.h"
+#include "rdb.h"
 
 /* Log levels */
 #define REDIS_DEBUG 0   // log debug
@@ -70,6 +71,7 @@
 #define REDIS_LRU_CLOCK_RESOLUTION 1
 
 #define REDIS_SHARED_SELECT_CMDS 10
+// #define REDIS_SHARED_SELECT_CMDS 105
 #define REDIS_SHARED_INTEGERS 10000
 #define REDIS_SHARED_BULKHDR_LEN 32
 #define REDIS_MAX_LOGMSG_LEN    1024
@@ -97,6 +99,35 @@ struct saveparam {
     int changes;
 };
 
+typedef struct redisObject {
+    unsigned type:4;
+    unsigned encoding:4;
+    unsigned lru:REDIS_LRU_BITS;
+    int refcount;
+    void *ptr;
+} robj;
+
+struct sharedObjectsStruct {
+    robj *crlf, *ok, *err, *emptybulk, *czero, *cone, *cnegone, *pong, *space,
+    *colon, *nullbulk, *nullmultibulk, *queued,
+    *emptymultibulk, *wrongtypeerr, *nokeyerr, *syntaxerr, *sameobjecterr,
+    *outofrangeerr, *noscripterr, *loadingerr, *slowscripterr, *bgsaveerr,
+    *masterdownerr, *roslaveerr, *execaborterr, *noautherr, *noreplicaserr,
+    *oomerr, *plus, *messagebulk, *pmessagebulk, *subscribebulk,
+    *unsubscribebulk, *psubscribebulk, *punsubscribebulk, *del, *rpop, *lpop,
+    *lpush, *emptyscan, *minstring, *maxstring,
+    *select[REDIS_SHARED_SELECT_CMDS],
+    *integers[REDIS_SHARED_INTEGERS],
+    *mbulkhdr[REDIS_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */
+    *bulkhdr[REDIS_SHARED_BULKHDR_LEN];  /* "$<value>\r\n" */
+};
+
+// 客户端状态
+typedef struct redisClient {
+    uint64_t id;
+    int fd;
+} redisClient;
+
 struct redisServer {
     int verbosity;
     int sentinel_mode;
@@ -118,6 +149,8 @@ struct redisServer {
     int repl_disable_tcp_nodelay;
     int daemonize;
     int slaveseldb;
+    int shutdown_asap;
+    int loading;
 
     char *logfile;
     char *configfile;
@@ -133,6 +166,7 @@ struct redisServer {
     unsigned lruclock:REDIS_LRU_BITS;
     unsigned long long maxmemory;
     time_t repl_backlog_time_limit;
+    redisClient *current_client;
 
     list *clients;
     list *clients_to_close;
@@ -154,5 +188,7 @@ void memtest(size_t, int);
 
 extern struct redisServer server;
 void resizeReplicationBacklog(long long);
+robj *createObject(int, void *);
+robj *createStringObject(char *, size_t);
 
 #endif

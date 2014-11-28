@@ -1,13 +1,14 @@
 #include "redis.h"
 
-// 创建客户端新链表
 list *listCreate(void) {
     struct list *list;
 
+    // list指针分配空间
     if ((list = zmalloc(sizeof(*list))) == NULL) {
         return NULL;
     }
 
+    // init
     list->head = list->tail = NULL;
     list->len = 0;
     list->dup = NULL;
